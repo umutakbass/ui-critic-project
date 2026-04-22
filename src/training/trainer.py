@@ -80,6 +80,7 @@ def train(config: FullConfig) -> None:
         bias="none",
         task_type="CAUSAL_LM",
     )
+    adapter.model.enable_input_require_grads()
     model = get_peft_model(adapter.model, lora_config)
     model.print_trainable_parameters()
     adapter.model = model
@@ -118,6 +119,7 @@ def train(config: FullConfig) -> None:
         save_strategy="steps",
         bf16=(config.model.torch_dtype == "bfloat16"),
         fp16=(config.model.torch_dtype == "float16"),
+        gradient_checkpointing=True,
         report_to=["tensorboard"],
         seed=config.experiment.seed,
         remove_unused_columns=False,
