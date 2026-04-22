@@ -1,0 +1,15 @@
+-r requirements-dev.txt
+accelerate>=1.0
+peft>=0.13
+bitsandbytes>=0.44
+unsloth
+evaluate
+sacrebleu
+rouge-score
+bert-score
+nltk
+opencv-python-headless
+jsonschema
+huggingface-hub
+wandb
+kaggle
