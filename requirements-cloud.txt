@@ -2,7 +2,6 @@
 accelerate>=1.0
 peft>=0.13
 bitsandbytes>=0.44
-unsloth
 evaluate
 sacrebleu
 rouge-score

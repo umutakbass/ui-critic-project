@@ -120,6 +120,7 @@ def train(config: FullConfig) -> None:
         bf16=(config.model.torch_dtype == "bfloat16"),
         fp16=(config.model.torch_dtype == "float16"),
         gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
         report_to=["tensorboard"],
         seed=config.experiment.seed,
         remove_unused_columns=False,
