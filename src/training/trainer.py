@@ -1,13 +1,58 @@
 """Ana eğitim fonksiyonu — config'ten modeli alır, LoRA uygular, eğitir."""
 
 from pathlib import Path
+from typing import Dict, List
 
+import torch
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from transformers import TrainingArguments, Trainer
 
 from .config_schema import FullConfig
 from .dataset import UICriticDataset
 from ..models.registry import create_adapter
+
+
+class VLMDataCollator:
+    """Değişken uzunluktaki VLM dizilerini padding ile toplu hale getirir."""
+
+    def __init__(self, pad_token_id: int):
+        self.pad_token_id = pad_token_id
+
+    def __call__(self, batch: List[Dict]) -> Dict:
+        if not batch:
+            return {}
+
+        max_len = max(item["input_ids"].shape[0] for item in batch)
+        result = {}
+
+        for key in batch[0].keys():
+            tensors = [item[key] for item in batch]
+
+            if key == "input_ids":
+                padded = [
+                    torch.cat([t, t.new_full((max_len - t.shape[0],), self.pad_token_id)])
+                    for t in tensors
+                ]
+                result[key] = torch.stack(padded)
+            elif key == "attention_mask":
+                padded = [
+                    torch.cat([t, t.new_zeros(max_len - t.shape[0])])
+                    for t in tensors
+                ]
+                result[key] = torch.stack(padded)
+            elif key == "labels":
+                padded = [
+                    torch.cat([t, t.new_full((max_len - t.shape[0],), -100)])
+                    for t in tensors
+                ]
+                result[key] = torch.stack(padded)
+            else:
+                try:
+                    result[key] = torch.stack(tensors)
+                except Exception:
+                    result[key] = tensors
+
+        return result
 
 
 def train(config: FullConfig) -> None:
@@ -78,12 +123,19 @@ def train(config: FullConfig) -> None:
         seed=config.experiment.seed,
     )
 
-    # 5. Trainer — VLM'ler için özel collator Faz 8'de eklenecek
+    # 5. Collator ve Trainer
+    pad_token_id = (
+        adapter.processor.tokenizer.pad_token_id
+        or adapter.processor.tokenizer.eos_token_id
+    )
+    collator = VLMDataCollator(pad_token_id=pad_token_id)
+
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=train_ds,
         eval_dataset=val_ds,
+        data_collator=collator,
     )
 
     # 6. Eğit ve kaydet

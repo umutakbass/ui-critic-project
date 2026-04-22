@@ -1,29 +1,20 @@
-"""PyTorch Dataset — eğitim kayıtlarını adapter formatına dönüştürür."""
+"""PyTorch Dataset — eğitim kayıtlarını VLM eğitim formatına dönüştürür."""
 
 import json
-from pathlib import Path
-from typing import Dict
+from typing import Dict, Tuple
 
 from PIL import Image
 from torch.utils.data import Dataset
 
 
 class UICriticDataset(Dataset):
-    """Eğitim verisi için PyTorch Dataset.
-
-    Her __getitem__ çağrısında:
-      1. Görsel okunur ve gerekirse küçültülür.
-      2. Görev tipine göre doğru instruction + target oluşturulur.
-      3. Adapter'ın format_prompt() ile model girdisi hazırlanır.
+    """Her __getitem__ çağrısında:
+    1. Görsel okunur ve küçültülür.
+    2. Tam konuşma (kullanıcı + asistan) oluşturulur.
+    3. Processor ile tokenize edilir ve labels eklenir.
     """
 
-    def __init__(
-        self,
-        records_path: str,
-        task: str,
-        adapter,
-        max_image_size: int = 1024,
-    ):
+    def __init__(self, records_path: str, task: str, adapter, max_image_size: int = 1024):
         with open(records_path, "r", encoding="utf-8") as f:
             self.records = json.load(f)
         self.task = task
@@ -33,26 +24,16 @@ class UICriticDataset(Dataset):
     def __len__(self) -> int:
         return len(self.records)
 
-    def __getitem__(self, idx: int) -> Dict:
+    def _get_instruction_target(self, rec: Dict) -> Tuple[str, str]:
         from .prompts import (
             MODEL1_USER_INSTRUCTION,
             MODEL2_USER_INSTRUCTION,
             MODEL3_USER_INSTRUCTION_TEMPLATE,
         )
-
-        rec = self.records[idx]
-
-        img = Image.open(rec["image_path"]).convert("RGB")
-        if max(img.size) > self.max_image_size:
-            img.thumbnail((self.max_image_size, self.max_image_size))
-
         if self.task == "model1":
             instruction = MODEL1_USER_INSTRUCTION
             target = json.dumps(
-                {
-                    "critiques": rec["critiques"],
-                    "overall_feedback": rec.get("overall_feedback", ""),
-                },
+                {"critiques": rec["critiques"], "overall_feedback": rec.get("overall_feedback", "")},
                 ensure_ascii=False,
             )
         elif self.task == "model2":
@@ -63,14 +44,33 @@ class UICriticDataset(Dataset):
                 hierarchy_json=json.dumps(rec["predicted_hierarchy"], ensure_ascii=False)
             )
             target = json.dumps(
-                {
-                    "critiques": rec["critiques"],
-                    "overall_feedback": rec.get("overall_feedback", ""),
-                },
+                {"critiques": rec["critiques"], "overall_feedback": rec.get("overall_feedback", "")},
                 ensure_ascii=False,
             )
         else:
             raise ValueError(f"Bilinmeyen task: {self.task}")
+        return instruction, target
 
-        inputs = self.adapter.format_prompt(instruction, img)
-        return {"inputs": inputs, "target": target, "rico_id": rec["rico_id"]}
+    def __getitem__(self, idx: int) -> Dict:
+        rec = self.records[idx]
+
+        img = Image.open(rec["image_path"]).convert("RGB")
+        if max(img.size) > self.max_image_size:
+            img.thumbnail((self.max_image_size, self.max_image_size))
+
+        instruction, target = self._get_instruction_target(rec)
+
+        # Tam konuşma: kullanıcı sorusu + asistan cevabı
+        messages = [
+            {"role": "user", "content": [{"type": "image"}, {"type": "text", "text": instruction}]},
+            {"role": "assistant", "content": target},
+        ]
+
+        processor = self.adapter.processor
+        text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
+        inputs = processor(text=[text], images=[img], return_tensors="pt")
+
+        # Batch boyutunu kaldır (her örnek tek)
+        result = {k: v.squeeze(0) for k, v in inputs.items()}
+        result["labels"] = result["input_ids"].clone()
+        return result
