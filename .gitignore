@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Data & model weights (sadece kök klasördekiler)
+/data/
+/outputs/
+*.ckpt
+*.pt
+*.gguf
+*.safetensors
+*.bin
+
+# Logs
+*.log
+wandb/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+*.pem
+*.key
+kaggle.json

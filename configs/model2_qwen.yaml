@@ -1,0 +1,41 @@
+experiment:
+  name: model2_qwen_v1
+  seed: 42
+  task: model2
+
+model:
+  name: qwen2.5-vl-7b
+  load_in_4bit: true
+  torch_dtype: bfloat16
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: auto
+
+data:
+  train_path: data/processed/model2_train.json
+  val_path: data/processed/model2_val.json
+  test_path: data/processed/model2_test.json
+  image_dir: data/archive/unique_uis/combined
+  max_image_size: 1024
+  output_format: structured_json
+
+training:
+  num_epochs: 3
+  batch_size: 2
+  gradient_accumulation_steps: 8
+  learning_rate: 0.0002
+  warmup_steps: 200
+  weight_decay: 0.01
+  save_steps: 500
+  eval_steps: 500
+  logging_steps: 50
+  max_grad_norm: 1.0
+  use_unsloth: true
+
+output:
+  dir: outputs/checkpoints/model2_qwen_v1
+  logging_dir: outputs/logs/model2_qwen_v1
+  save_total_limit: 2

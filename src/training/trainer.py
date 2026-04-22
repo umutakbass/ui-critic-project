@@ -1,0 +1,93 @@
+"""Ana eğitim fonksiyonu — config'ten modeli alır, LoRA uygular, eğitir."""
+
+from pathlib import Path
+
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from transformers import TrainingArguments, Trainer
+
+from .config_schema import FullConfig
+from .dataset import UICriticDataset
+from ..models.registry import create_adapter
+
+
+def train(config: FullConfig) -> None:
+    """Verilen config ile tam eğitim döngüsünü çalıştır."""
+
+    # 1. Adapter ve model yükle
+    adapter = create_adapter(config.model.name)
+    adapter.load_model(
+        load_in_4bit=config.model.load_in_4bit,
+        torch_dtype=config.model.torch_dtype,
+    )
+
+    # 2. LoRA hazırla
+    target_modules = (
+        adapter.get_lora_target_modules()
+        if config.lora.target_modules == "auto"
+        else config.lora.target_modules.split(",")
+    )
+
+    model = prepare_model_for_kbit_training(adapter.model)
+    lora_config = LoraConfig(
+        r=config.lora.r,
+        lora_alpha=config.lora.alpha,
+        target_modules=target_modules,
+        lora_dropout=config.lora.dropout,
+        bias="none",
+        task_type="CAUSAL_LM",
+    )
+    model = get_peft_model(model, lora_config)
+    model.print_trainable_parameters()
+    adapter.model = model
+
+    # 3. Dataset'leri hazırla
+    train_ds = UICriticDataset(
+        config.data.train_path,
+        config.experiment.task,
+        adapter,
+        config.data.max_image_size,
+    )
+    val_ds = UICriticDataset(
+        config.data.val_path,
+        config.experiment.task,
+        adapter,
+        config.data.max_image_size,
+    )
+
+    # 4. TrainingArguments
+    training_args = TrainingArguments(
+        output_dir=config.output.dir,
+        logging_dir=config.output.logging_dir,
+        num_train_epochs=config.training.num_epochs,
+        per_device_train_batch_size=config.training.batch_size,
+        gradient_accumulation_steps=config.training.gradient_accumulation_steps,
+        learning_rate=config.training.learning_rate,
+        warmup_steps=config.training.warmup_steps,
+        weight_decay=config.training.weight_decay,
+        save_steps=config.training.save_steps,
+        eval_steps=config.training.eval_steps,
+        logging_steps=config.training.logging_steps,
+        max_grad_norm=config.training.max_grad_norm,
+        save_total_limit=config.output.save_total_limit,
+        eval_strategy="steps",
+        save_strategy="steps",
+        bf16=(config.model.torch_dtype == "bfloat16"),
+        fp16=(config.model.torch_dtype == "float16"),
+        report_to=["tensorboard"],
+        seed=config.experiment.seed,
+    )
+
+    # 5. Trainer — VLM'ler için özel collator Faz 8'de eklenecek
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_ds,
+        eval_dataset=val_ds,
+    )
+
+    # 6. Eğit ve kaydet
+    trainer.train()
+
+    final_path = Path(config.output.dir) / "final"
+    trainer.save_model(str(final_path))
+    print(f"Model kaydedildi: {final_path}")
