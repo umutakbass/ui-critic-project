@@ -11,8 +11,17 @@ class QwenVLAdapter(BaseVLMAdapter):
     """Qwen2.5-VL-3B/7B-Instruct için adapter."""
 
     def load_model(self, load_in_4bit: bool = True, torch_dtype: str = "bfloat16") -> None:
-        from transformers import AutoProcessor, AutoModelForVision2Seq, BitsAndBytesConfig
         import torch
+        from transformers import AutoProcessor, BitsAndBytesConfig
+
+        # Qwen2.5-VL için doğru sınıfı bul (transformers versiyonuna göre)
+        try:
+            from transformers import Qwen2_5_VLForConditionalGeneration as QwenModel
+        except ImportError:
+            try:
+                from transformers import AutoModelForVision2Seq as QwenModel
+            except ImportError:
+                from transformers import Qwen2VLForConditionalGeneration as QwenModel
 
         dtype_map = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}
         dtype = dtype_map[torch_dtype]
@@ -25,7 +34,7 @@ class QwenVLAdapter(BaseVLMAdapter):
                 bnb_4bit_quant_type="nf4",
             )
 
-        self.model = AutoModelForVision2Seq.from_pretrained(
+        self.model = QwenModel.from_pretrained(
             self.hf_id,
             torch_dtype=dtype,
             quantization_config=quant_config,
