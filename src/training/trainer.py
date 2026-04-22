@@ -121,6 +121,7 @@ def train(config: FullConfig) -> None:
         fp16=(config.model.torch_dtype == "float16"),
         report_to=["tensorboard"],
         seed=config.experiment.seed,
+        remove_unused_columns=False,
     )
 
     # 5. Collator ve Trainer
