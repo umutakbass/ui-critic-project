@@ -38,7 +38,7 @@ class QwenVLAdapter(BaseVLMAdapter):
             self.hf_id,
             torch_dtype=dtype,
             quantization_config=quant_config,
-            device_map="auto",
+            device_map={"": 0} if quant_config else "auto",
         )
         self.processor = AutoProcessor.from_pretrained(self.hf_id)
 
