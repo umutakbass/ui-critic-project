@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, List
 
 import torch
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from peft import LoraConfig, get_peft_model
 from transformers import TrainingArguments, Trainer
 
 from .config_schema import FullConfig
@@ -72,7 +72,6 @@ def train(config: FullConfig) -> None:
         else config.lora.target_modules.split(",")
     )
 
-    model = prepare_model_for_kbit_training(adapter.model)
     lora_config = LoraConfig(
         r=config.lora.r,
         lora_alpha=config.lora.alpha,
@@ -81,7 +80,7 @@ def train(config: FullConfig) -> None:
         bias="none",
         task_type="CAUSAL_LM",
     )
-    model = get_peft_model(model, lora_config)
+    model = get_peft_model(adapter.model, lora_config)
     model.print_trainable_parameters()
     adapter.model = model
 
