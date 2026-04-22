@@ -45,6 +45,7 @@ class TrainingConfig(BaseModel):
     logging_steps: int = 20
     max_grad_norm: float = 1.0
     use_unsloth: bool = True
+    max_steps: int = -1  # -1 = tüm epoch'ları çalıştır, >0 = pilot test için adım sınırı
 
 
 class OutputConfig(BaseModel):

@@ -68,6 +68,7 @@ def train(config: FullConfig) -> None:
         eval_steps=config.training.eval_steps,
         logging_steps=config.training.logging_steps,
         max_grad_norm=config.training.max_grad_norm,
+        max_steps=config.training.max_steps,
         save_total_limit=config.output.save_total_limit,
         eval_strategy="steps",
         save_strategy="steps",
