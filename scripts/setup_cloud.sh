@@ -17,7 +17,12 @@ pip install -r requirements-cloud.txt || pip install -r requirements-cloud.txt -
 pip install unsloth 2>/dev/null && echo "   unsloth kuruldu (opsiyonel)" || echo "   unsloth atlandı (opsiyonel)"
 
 echo "=== 2/6 HuggingFace login ==="
-huggingface-cli login --token "$HF_TOKEN" --add-to-git-credential
+# Yeni hf CLI'ı tercih et, yoksa eski huggingface-cli'a düş
+if command -v hf >/dev/null 2>&1; then
+    hf auth login --token "$HF_TOKEN" --add-to-git-credential
+else
+    huggingface-cli login --token "$HF_TOKEN" --add-to-git-credential
+fi
 
 echo "=== 3/6 UICrit indiriliyor ==="
 mkdir -p data/uicrit
