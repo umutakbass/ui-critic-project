@@ -46,6 +46,17 @@ class VLMDataCollator:
                     for t in tensors
                 ]
                 result[key] = torch.stack(padded)
+            elif key == "pixel_values":
+                try:
+                    result[key] = torch.cat(tensors, dim=0)
+                except Exception:
+                    result[key] = tensors
+            elif key == "image_grid_thw":
+                try:
+                    stacked = [t.unsqueeze(0) if t.dim() == 1 else t for t in tensors]
+                    result[key] = torch.cat(stacked, dim=0)
+                except Exception:
+                    result[key] = tensors
             else:
                 try:
                     result[key] = torch.stack(tensors)

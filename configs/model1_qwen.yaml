@@ -24,8 +24,8 @@ data:
 
 training:
   num_epochs: 3
-  batch_size: 2
-  gradient_accumulation_steps: 8
+  batch_size: 1
+  gradient_accumulation_steps: 16
   learning_rate: 0.0002
   warmup_steps: 100
   weight_decay: 0.01
