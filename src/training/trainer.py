@@ -119,6 +119,7 @@ def train(config: FullConfig) -> None:
         logging_dir=config.output.logging_dir,
         num_train_epochs=config.training.num_epochs,
         per_device_train_batch_size=config.training.batch_size,
+        per_device_eval_batch_size=1,
         gradient_accumulation_steps=config.training.gradient_accumulation_steps,
         learning_rate=config.training.learning_rate,
         warmup_steps=config.training.warmup_steps,
