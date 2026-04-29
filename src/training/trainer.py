@@ -50,7 +50,10 @@ class VLMDataCollator:
                 try:
                     result[key] = torch.cat(tensors, dim=0)
                 except Exception:
-                    result[key] = tensors
+                    if len(tensors) == 1 and isinstance(tensors[0], torch.Tensor):
+                        result[key] = tensors[0]
+                    else:
+                        result[key] = tensors
             elif key == "image_grid_thw":
                 try:
                     stacked = [t.unsqueeze(0) if t.dim() == 1 else t for t in tensors]
