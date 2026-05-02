@@ -21,8 +21,10 @@ def parse_args():
 
 
 def load_config(config_path):
-    from src.training.config_loader import load_config
-    return load_config(config_path)
+    import sys, os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from src.training.config_loader import load_config as _load
+    return _load(config_path)
 
 
 def compute_metrics(predictions, references):
