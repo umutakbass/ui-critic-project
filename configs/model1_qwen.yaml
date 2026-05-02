@@ -1,5 +1,5 @@
 experiment:
-  name: model1_qwen_v1
+  name: model1_qwen_v2
   seed: 42
   task: model1
 
@@ -9,8 +9,8 @@ model:
   torch_dtype: bfloat16
 
 lora:
-  r: 16
-  alpha: 32
+  r: 32
+  alpha: 64
   dropout: 0.05
   target_modules: auto
 
@@ -23,11 +23,11 @@ data:
   output_format: hybrid_json
 
 training:
-  num_epochs: 3
+  num_epochs: 8
   batch_size: 1
   gradient_accumulation_steps: 16
-  learning_rate: 0.0002
-  warmup_steps: 100
+  learning_rate: 0.0001
+  warmup_steps: 15
   weight_decay: 0.01
   save_steps: 200
   eval_steps: 200
@@ -36,6 +36,6 @@ training:
   use_unsloth: true
 
 output:
-  dir: outputs/checkpoints/model1_qwen_v1
-  logging_dir: outputs/logs/model1_qwen_v1
+  dir: outputs/checkpoints/model1_qwen_v2
+  logging_dir: outputs/logs/model1_qwen_v2
   save_total_limit: 2
