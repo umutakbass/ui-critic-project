@@ -68,7 +68,13 @@ class UICriticDataset(Dataset):
 
         processor = self.adapter.processor
         text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
-        inputs = processor(text=[text], images=[img], return_tensors="pt")
+        inputs = processor(
+            text=[text],
+            images=[img],
+            return_tensors="pt",
+            truncation=True,
+            max_length=2048,
+        )
 
         # Batch boyutunu kaldır (her örnek tek)
         result = {k: v.squeeze(0) for k, v in inputs.items()}

@@ -9,8 +9,8 @@ model:
   torch_dtype: bfloat16
 
 lora:
-  r: 32
-  alpha: 64
+  r: 16
+  alpha: 32
   dropout: 0.05
   target_modules: auto
 
@@ -19,7 +19,7 @@ data:
   val_path: data/processed/model2_val.json
   test_path: data/processed/model2_test.json
   image_dir: data/archive/unique_uis/combined
-  max_image_size: 1024
+  max_image_size: 512
   output_format: structured_json
 
 training:
