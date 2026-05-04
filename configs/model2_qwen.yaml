@@ -9,8 +9,8 @@ model:
   torch_dtype: bfloat16
 
 lora:
-  r: 16
-  alpha: 32
+  r: 32
+  alpha: 64
   dropout: 0.05
   target_modules: auto
 
@@ -24,10 +24,10 @@ data:
 
 training:
   num_epochs: 3
-  batch_size: 2
-  gradient_accumulation_steps: 8
-  learning_rate: 0.0002
-  warmup_steps: 200
+  batch_size: 1
+  gradient_accumulation_steps: 16
+  learning_rate: 0.0001
+  warmup_steps: 50
   weight_decay: 0.01
   save_steps: 500
   eval_steps: 500
