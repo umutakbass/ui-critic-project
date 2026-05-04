@@ -15,9 +15,9 @@ lora:
   target_modules: auto
 
 data:
-  train_path: data/processed/model2_train.json
-  val_path: data/processed/model2_val.json
-  test_path: data/processed/model2_test.json
+  train_path: data/processed/model2_train_3k.json
+  val_path: data/processed/model2_val_3k.json
+  test_path: data/processed/model2_test_3k.json
   image_dir: data/archive/unique_uis/combined
   max_image_size: 1024
   output_format: structured_json
@@ -33,6 +33,7 @@ training:
   eval_steps: 500
   logging_steps: 50
   max_grad_norm: 1.0
+  max_steps: 950
   use_unsloth: true
 
 output:
