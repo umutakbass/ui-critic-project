@@ -69,7 +69,13 @@ python scripts/verify_setup.py
 
 echo "=== 6/6 Eğitim verisi hazırlanıyor ==="
 python scripts/prepare_data.py --task model1
-python scripts/prepare_data.py --task model2
+
+echo "=== Model2 3K alt dataset indiriliyor ==="
+mkdir -p data/processed
+gdown 1H-Lbw-GhRH2CdE270jf2UudW2TeGO8zw -O data/processed/model2_train_3k.json
+gdown 1pLtCfDGcc99j1m7PDK_O35G2MT8d-Z_a -O data/processed/model2_val_3k.json
+gdown 1q2lc3QbTXuHLqSNdkrI0qAtZXjgw_Re4 -O data/processed/model2_test_3k.json
+echo "   Model2 3K dataset hazır"
 
 echo ""
 echo "Kurulum tamamlandı! Eğitimi başlatmak için:"
