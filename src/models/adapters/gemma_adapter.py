@@ -76,8 +76,7 @@ class Gemma4Adapter(BaseVLMAdapter):
             tokenize=True,
             return_tensors="pt",
             return_dict=True,
-            truncation=True,
-            max_length=max_length,
+            processor_kwargs={"truncation": True, "max_length": max_length},
         )
         return inputs
 
