@@ -84,7 +84,7 @@ class Gemma4Adapter(BaseVLMAdapter):
     def get_lora_target_modules(self) -> str:
         # Gemma 4'ün vision encoder'ı Gemma4ClippableLinear kullanıyor (PEFT desteklemiyor).
         # Regex ile sadece language_model katmanlarını hedef al.
-        return r"language_model\..*\.(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj)"
+        return r".*language_model.*\.(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj)"
 
     def generate(self, inputs: Dict, max_new_tokens: int = 512) -> str:
         input_len = inputs["input_ids"].shape[1]
