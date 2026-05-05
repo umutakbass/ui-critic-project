@@ -82,27 +82,23 @@ class Gemma4Adapter(BaseVLMAdapter):
             processor_kwargs={"truncation": True, "max_length": max_length},
         )
 
-        # Asistan cevabını tokenize et (sadece metin, görselsiz)
+        # Asistan cevabını ayrıca tokenize et (görselsiz, sadece metin)
+        # Bu bize cevabın kaç token tuttuğunu verir
         target_ids = self.processor.tokenizer(
             target, add_special_tokens=False
         )["input_ids"]
+        target_len = len(target_ids)
 
-        full_ids = inputs["input_ids"][0].tolist()
+        full_len = inputs["input_ids"].shape[1]
 
-        # Sequence içinde target_ids'in son başlangıç pozisyonunu bul
-        assistant_start = None
-        for i in range(len(full_ids) - len(target_ids), -1, -1):
-            if full_ids[i : i + len(target_ids)] == target_ids:
-                assistant_start = i
-                break
+        # Asistan cevabı her zaman sequence'ın sonunda yer alır.
+        # Sondan target_len token geri giderek maskeleme noktasını bul.
+        # +2: end_of_turn ve eos gibi özel tokenlar için pay
+        mask_until = max(0, full_len - target_len - 2)
 
+        import torch
         labels = inputs["input_ids"].clone()
-        if assistant_start is not None:
-            labels[0, :assistant_start] = -100
-        else:
-            # Fallback: son %40'ı mask'le (görselli sequence'larda yaklaşık)
-            labels[0, : int(len(full_ids) * 0.6)] = -100
-
+        labels[0, :mask_until] = -100
         inputs["labels"] = labels
         return inputs
 
