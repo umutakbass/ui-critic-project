@@ -56,8 +56,10 @@ class Gemma4Adapter(BaseVLMAdapter):
     def prepare_training_inputs(self, instruction: str, target: str, image: Image.Image, max_length: int = 2048) -> Dict:
         """Eğitim için tam konuşma girdisini hazırla.
         Sadece asistan cevabı tokenları loss'a katılır (label masking).
+        Gemma 4 chat template: <start_of_turn>model\n ile başlayan asistan bölümünü bulur.
         """
-        # Tam konuşma (user + assistant)
+        import torch
+
         messages_full = [
             {
                 "role": "user",
@@ -80,31 +82,28 @@ class Gemma4Adapter(BaseVLMAdapter):
             processor_kwargs={"truncation": True, "max_length": max_length},
         )
 
-        # Sadece user bölümü (asistan cevabının nerede başladığını bulmak için)
-        messages_user = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "image", "image": image},
-                    {"type": "text", "text": instruction},
-                ],
-            },
-        ]
-        inputs_user = self.processor.apply_chat_template(
-            messages_user,
-            add_generation_prompt=True,
-            tokenize=True,
-            return_tensors="pt",
-            return_dict=True,
-        )
-        user_len = inputs_user["input_ids"].shape[1]
+        # Asistan cevabını tokenize et (sadece metin, görselsiz)
+        target_ids = self.processor.tokenizer(
+            target, add_special_tokens=False
+        )["input_ids"]
 
-        # Label masking: user + görsel tokenları -100, sadece asistan cevabı loss'a katılır
-        import torch
+        full_ids = inputs["input_ids"][0].tolist()
+
+        # Sequence içinde target_ids'in son başlangıç pozisyonunu bul
+        assistant_start = None
+        for i in range(len(full_ids) - len(target_ids), -1, -1):
+            if full_ids[i : i + len(target_ids)] == target_ids:
+                assistant_start = i
+                break
+
         labels = inputs["input_ids"].clone()
-        labels[0, :user_len] = -100
-        inputs["labels"] = labels
+        if assistant_start is not None:
+            labels[0, :assistant_start] = -100
+        else:
+            # Fallback: son %40'ı mask'le (görselli sequence'larda yaklaşık)
+            labels[0, : int(len(full_ids) * 0.6)] = -100
 
+        inputs["labels"] = labels
         return inputs
 
     def get_lora_target_modules(self) -> str:
