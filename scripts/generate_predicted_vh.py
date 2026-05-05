@@ -20,7 +20,8 @@ def parse_args():
     parser.add_argument("--config", required=True)
     parser.add_argument("--checkpoint", default=None)
     parser.add_argument("--output", default="data/processed/pred_vh.json")
-    parser.add_argument("--max_new_tokens", type=int, default=1024)
+    parser.add_argument("--max_new_tokens", type=int, default=512)
+    parser.add_argument("--max_samples", type=int, default=None, help="Kaç görsel için üretilsin")
     parser.add_argument("--uicrit_csv", default="data/uicrit/uicrit_public.csv")
     parser.add_argument("--rico_dir", default="data/archive/unique_uis")
     return parser.parse_args()
@@ -57,6 +58,8 @@ def main():
     rico = RicoLoader(args.rico_dir)
     aligner = UICritRicoAligner(uicrit, rico)
     all_ids = aligner.get_all_aligned_ids()
+    if args.max_samples:
+        all_ids = all_ids[:args.max_samples]
 
     rico_image_dir = str(Path(args.rico_dir) / "combined")
     print(f"Toplam {len(all_ids)} görsel için hierarchy üretiliyor...\n")
