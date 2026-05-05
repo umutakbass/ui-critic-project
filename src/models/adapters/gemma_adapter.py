@@ -82,24 +82,36 @@ class Gemma4Adapter(BaseVLMAdapter):
             processor_kwargs={"truncation": True, "max_length": max_length},
         )
 
-        # Asistan cevabını ayrıca tokenize et (görselsiz, sadece metin)
-        # Bu bize cevabın kaç token tuttuğunu verir
+        import torch
+
+        full_ids = inputs["input_ids"][0]  # [seq_len]
+
+        # Asistan cevabını ayrıca tokenize et (kaç text token tuttuğunu öğren)
         target_ids = self.processor.tokenizer(
             target, add_special_tokens=False
         )["input_ids"]
         target_len = len(target_ids)
 
-        full_len = inputs["input_ids"].shape[1]
+        # Önce her şeyi maskele
+        labels = torch.full_like(full_ids, -100)
 
-        # Asistan cevabı her zaman sequence'ın sonunda yer alır.
-        # Sondan target_len token geri giderek maskeleme noktasını bul.
-        # +2: end_of_turn ve eos gibi özel tokenlar için pay
-        mask_until = max(0, full_len - target_len - 2)
+        if "mm_token_type_ids" in inputs:
+            # mm_token_type_ids: 0 = metin tokeni, diğer = görsel tokeni
+            mm_type = inputs["mm_token_type_ids"][0]  # [seq_len]
+            text_positions = (mm_type == 0).nonzero(as_tuple=True)[0]
 
-        import torch
-        labels = inputs["input_ids"].clone()
-        labels[0, :mask_until] = -100
-        inputs["labels"] = labels
+            # Text tokenların sadece son target_len tanesini unmask et
+            # (asistan cevabı her zaman sondaki text tokenlar)
+            if len(text_positions) >= target_len:
+                assistant_positions = text_positions[-target_len:]
+                labels[assistant_positions] = full_ids[assistant_positions]
+        else:
+            # Fallback: sondan target_len+2 token unmask et
+            full_len = len(full_ids)
+            mask_until = max(0, full_len - target_len - 2)
+            labels[mask_until:] = full_ids[mask_until:]
+
+        inputs["labels"] = labels.unsqueeze(0)  # [1, seq_len]
         return inputs
 
     def get_lora_target_modules(self) -> str:
