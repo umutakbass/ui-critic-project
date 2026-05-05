@@ -48,10 +48,15 @@ class VLMDataCollator:
                 result[key] = torch.stack(padded)
             elif key == "pixel_values":
                 try:
-                    result[key] = torch.cat(tensors, dim=0)
+                    if tensors[0].dim() == 2:
+                        # Gemma 4: [patches, dim] → stack → [B, patches, dim]
+                        result[key] = torch.stack(tensors, dim=0)
+                    else:
+                        # Qwen: [patches, C, h, w] → cat → [B*patches, C, h, w]
+                        result[key] = torch.cat(tensors, dim=0)
                 except Exception:
                     if len(tensors) == 1 and isinstance(tensors[0], torch.Tensor):
-                        result[key] = tensors[0]
+                        result[key] = tensors[0].unsqueeze(0)
                     else:
                         result[key] = tensors
             elif key == "image_grid_thw":
