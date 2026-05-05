@@ -60,10 +60,12 @@ class UICriticDataset(Dataset):
 
         instruction, target = self._get_instruction_target(rec)
 
-        # Adapter'a özgü eğitim formatına dönüştür
+        # Adapter'a özgü eğitim formatına dönüştür (labels masking dahil)
         inputs = self.adapter.prepare_training_inputs(instruction, target, img, max_length=2048)
 
         # Batch boyutunu kaldır (her örnek tek)
         result = {k: v.squeeze(0) for k, v in inputs.items()}
-        result["labels"] = result["input_ids"].clone()
+        # Adapter zaten labels döndürmüyorsa input_ids'den kopyala
+        if "labels" not in result:
+            result["labels"] = result["input_ids"].clone()
         return result

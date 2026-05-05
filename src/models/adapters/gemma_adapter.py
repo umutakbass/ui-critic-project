@@ -55,9 +55,10 @@ class Gemma4Adapter(BaseVLMAdapter):
 
     def prepare_training_inputs(self, instruction: str, target: str, image: Image.Image, max_length: int = 2048) -> Dict:
         """Eğitim için tam konuşma girdisini hazırla.
-        Gemma 4'te görsel mesaj içeriğinde doğrudan geçmeli.
+        Sadece asistan cevabı tokenları loss'a katılır (label masking).
         """
-        messages = [
+        # Tam konuşma (user + assistant)
+        messages_full = [
             {
                 "role": "user",
                 "content": [
@@ -71,13 +72,39 @@ class Gemma4Adapter(BaseVLMAdapter):
             },
         ]
         inputs = self.processor.apply_chat_template(
-            messages,
+            messages_full,
             add_generation_prompt=False,
             tokenize=True,
             return_tensors="pt",
             return_dict=True,
             processor_kwargs={"truncation": True, "max_length": max_length},
         )
+
+        # Sadece user bölümü (asistan cevabının nerede başladığını bulmak için)
+        messages_user = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": image},
+                    {"type": "text", "text": instruction},
+                ],
+            },
+        ]
+        inputs_user = self.processor.apply_chat_template(
+            messages_user,
+            add_generation_prompt=True,
+            tokenize=True,
+            return_tensors="pt",
+            return_dict=True,
+        )
+        user_len = inputs_user["input_ids"].shape[1]
+
+        # Label masking: user + görsel tokenları -100, sadece asistan cevabı loss'a katılır
+        import torch
+        labels = inputs["input_ids"].clone()
+        labels[0, :user_len] = -100
+        inputs["labels"] = labels
+
         return inputs
 
     def get_lora_target_modules(self) -> str:
