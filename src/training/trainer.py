@@ -80,11 +80,11 @@ def train(config: FullConfig) -> None:
     )
 
     # 2. LoRA hazırla
-    target_modules = (
-        adapter.get_lora_target_modules()
-        if config.lora.target_modules == "auto"
-        else config.lora.target_modules.split(",")
-    )
+    # get_lora_target_modules() list veya regex string döndürebilir
+    if config.lora.target_modules == "auto":
+        target_modules = adapter.get_lora_target_modules()
+    else:
+        target_modules = config.lora.target_modules.split(",")
 
     lora_config = LoraConfig(
         r=config.lora.r,
