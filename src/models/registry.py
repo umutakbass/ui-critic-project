@@ -15,6 +15,16 @@ MODEL_REGISTRY: Dict[str, Dict] = {
         "adapter_class": "QwenVLAdapter",
         "family": "qwen",
     },
+    "gemma-4-e4b": {
+        "hf_id": "google/gemma-4-E4B-it",
+        "adapter_class": "Gemma4Adapter",
+        "family": "gemma",
+    },
+    "gemma-4-31b": {
+        "hf_id": "google/gemma-4-31b-it",
+        "adapter_class": "Gemma4Adapter",
+        "family": "gemma",
+    },
     "gemma-4-4b": {
         "hf_id": "google/gemma-4-4b-it",
         "adapter_class": "Gemma4Adapter",

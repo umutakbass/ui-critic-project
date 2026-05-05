@@ -8,7 +8,7 @@ from ..base_adapter import BaseVLMAdapter
 
 
 class Gemma4Adapter(BaseVLMAdapter):
-    """Gemma-4-4B/12B-it için adapter."""
+    """Gemma-4-E4B/31B-it için adapter."""
 
     def load_model(self, load_in_4bit: bool = True, torch_dtype: str = "bfloat16") -> None:
         from transformers import AutoProcessor, AutoModelForImageTextToText, BitsAndBytesConfig
@@ -29,11 +29,12 @@ class Gemma4Adapter(BaseVLMAdapter):
             self.hf_id,
             torch_dtype=dtype,
             quantization_config=quant_config,
-            device_map="auto",
+            device_map="cuda",
         )
         self.processor = AutoProcessor.from_pretrained(self.hf_id)
 
     def format_prompt(self, instruction: str, image: Image.Image, **kwargs) -> Dict:
+        """Inference için prompt formatla."""
         messages = [
             {
                 "role": "user",
@@ -49,6 +50,34 @@ class Gemma4Adapter(BaseVLMAdapter):
             tokenize=True,
             return_tensors="pt",
             return_dict=True,
+        )
+        return inputs
+
+    def prepare_training_inputs(self, instruction: str, target: str, image: Image.Image, max_length: int = 2048) -> Dict:
+        """Eğitim için tam konuşma girdisini hazırla.
+        Gemma 4'te görsel mesaj içeriğinde doğrudan geçmeli.
+        """
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": image},
+                    {"type": "text", "text": instruction},
+                ],
+            },
+            {
+                "role": "assistant",
+                "content": [{"type": "text", "text": target}],
+            },
+        ]
+        inputs = self.processor.apply_chat_template(
+            messages,
+            add_generation_prompt=False,
+            tokenize=True,
+            return_tensors="pt",
+            return_dict=True,
+            truncation=True,
+            max_length=max_length,
         )
         return inputs
 

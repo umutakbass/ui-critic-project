@@ -34,3 +34,22 @@ class BaseVLMAdapter(ABC):
     @abstractmethod
     def generate(self, inputs: Dict, max_new_tokens: int = 512) -> str:
         """Verilen girdilerden metin üret (inference)."""
+
+    def prepare_training_inputs(self, instruction: str, target: str, image: Image.Image, max_length: int = 2048) -> Dict:
+        """Eğitim için tam konuşma (user + assistant) girdisini hazırla.
+        Alt sınıflar model'e özgü format için bu metodu override edebilir.
+        """
+        import json as _json
+        messages = [
+            {"role": "user", "content": [{"type": "image"}, {"type": "text", "text": instruction}]},
+            {"role": "assistant", "content": target},
+        ]
+        text = self.processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
+        inputs = self.processor(
+            text=[text],
+            images=[image],
+            return_tensors="pt",
+            truncation=True,
+            max_length=max_length,
+        )
+        return inputs

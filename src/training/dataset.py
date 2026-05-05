@@ -60,21 +60,8 @@ class UICriticDataset(Dataset):
 
         instruction, target = self._get_instruction_target(rec)
 
-        # Tam konuşma: kullanıcı sorusu + asistan cevabı
-        messages = [
-            {"role": "user", "content": [{"type": "image"}, {"type": "text", "text": instruction}]},
-            {"role": "assistant", "content": target},
-        ]
-
-        processor = self.adapter.processor
-        text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
-        inputs = processor(
-            text=[text],
-            images=[img],
-            return_tensors="pt",
-            truncation=True,
-            max_length=2048,
-        )
+        # Adapter'a özgü eğitim formatına dönüştür
+        inputs = self.adapter.prepare_training_inputs(instruction, target, img, max_length=2048)
 
         # Batch boyutunu kaldır (her örnek tek)
         result = {k: v.squeeze(0) for k, v in inputs.items()}

@@ -1,0 +1,41 @@
+experiment:
+  name: model3_gemma4_e4b_v1
+  seed: 42
+  task: model3
+
+model:
+  name: gemma-4-e4b
+  load_in_4bit: true
+  torch_dtype: bfloat16
+
+lora:
+  r: 32
+  alpha: 64
+  dropout: 0.05
+  target_modules: auto
+
+data:
+  train_path: data/processed/model3_train.json
+  val_path: data/processed/model3_val.json
+  test_path: data/processed/model3_test.json
+  image_dir: data/archive/unique_uis/combined
+  max_image_size: 1024
+  output_format: hybrid_json
+
+training:
+  num_epochs: 5
+  batch_size: 1
+  gradient_accumulation_steps: 16
+  learning_rate: 0.0001
+  warmup_steps: 10
+  weight_decay: 0.01
+  save_steps: 100
+  eval_steps: 100
+  logging_steps: 10
+  max_grad_norm: 1.0
+  use_unsloth: false
+
+output:
+  dir: outputs/checkpoints/model3_gemma4_e4b_v1
+  logging_dir: outputs/logs/model3_gemma4_e4b_v1
+  save_total_limit: 2
