@@ -91,7 +91,9 @@ def train(config: FullConfig) -> None:
     else:
         target_modules = config.lora.target_modules.split(",")
 
-    lora_config = LoraConfig(
+    # Gemma 4 için ek parametreler
+    is_gemma4 = "gemma" in config.model.name.lower()
+    lora_kwargs = dict(
         r=config.lora.r,
         lora_alpha=config.lora.alpha,
         target_modules=target_modules,
@@ -99,6 +101,11 @@ def train(config: FullConfig) -> None:
         bias="none",
         task_type="CAUSAL_LM",
     )
+    if is_gemma4:
+        lora_kwargs["modules_to_save"] = ["lm_head", "embed_tokens"]
+        lora_kwargs["ensure_weight_tying"] = True
+
+    lora_config = LoraConfig(**lora_kwargs)
     adapter.model.enable_input_require_grads()
     model = get_peft_model(adapter.model, lora_config)
     model.print_trainable_parameters()

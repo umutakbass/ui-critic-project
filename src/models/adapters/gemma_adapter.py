@@ -23,6 +23,8 @@ class Gemma4Adapter(BaseVLMAdapter):
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=dtype,
                 bnb_4bit_quant_type="nf4",
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_quant_storage=dtype,
             )
 
         self.model = AutoModelForImageTextToText.from_pretrained(
@@ -55,8 +57,8 @@ class Gemma4Adapter(BaseVLMAdapter):
 
     def prepare_training_inputs(self, instruction: str, target: str, image: Image.Image, max_length: int = 2048) -> Dict:
         """Eğitim için tam konuşma girdisini hazırla.
-        Sadece asistan cevabı tokenları loss'a katılır (label masking).
-        Gemma 4 chat template: <start_of_turn>model\n ile başlayan asistan bölümünü bulur.
+        HuggingFace'in return_assistant_tokens_mask ile sadece asistan
+        cevabı tokenları loss'a katılır.
         """
         import torch
 
@@ -73,6 +75,7 @@ class Gemma4Adapter(BaseVLMAdapter):
                 "content": [{"type": "text", "text": target}],
             },
         ]
+
         inputs = self.processor.apply_chat_template(
             messages_full,
             add_generation_prompt=False,
@@ -82,16 +85,24 @@ class Gemma4Adapter(BaseVLMAdapter):
             processor_kwargs={"truncation": True, "max_length": max_length},
         )
 
-        import torch
+        # Google resmi dokümantasyonuna göre label masking:
+        # pad, boi (begin-of-image), image ve eoi (end-of-image) tokenlarını maskele
+        labels = inputs["input_ids"].clone()
+        tokenizer = self.processor.tokenizer
 
-        # Tüm tokenları label olarak başlat (input_ids kopyası)
-        labels = inputs["input_ids"].clone()  # [1, seq_len]
+        # Pad tokeni
+        if tokenizer.pad_token_id is not None:
+            labels[labels == tokenizer.pad_token_id] = -100
 
+        # Görsel özel tokenları (boi, image_token, eoi)
+        for attr in ("boi_token_id", "image_token_id", "eoi_token_id"):
+            token_id = getattr(tokenizer, attr, None)
+            if token_id is not None:
+                labels[labels == token_id] = -100
+
+        # mm_token_type_ids ile görsel tokenları da maskele (ek güvence)
         if "mm_token_type_ids" in inputs:
-            # 0 = metin tokeni, 1 = görsel tokeni
-            # Görsel tokenları loss'tan çıkar
-            mm_type = inputs["mm_token_type_ids"]  # [1, seq_len]
-            labels[mm_type == 1] = -100
+            labels[inputs["mm_token_type_ids"] == 1] = -100
 
         inputs["labels"] = labels
         return inputs
