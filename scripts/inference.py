@@ -16,7 +16,7 @@ def parse_args():
     parser.add_argument("--config", required=True)
     parser.add_argument("--image", required=True, help="Görsel dosyası yolu")
     parser.add_argument("--checkpoint", default=None)
-    parser.add_argument("--max_new_tokens", type=int, default=512)
+    parser.add_argument("--max_new_tokens", type=int, default=1024)
     return parser.parse_args()
 
 
