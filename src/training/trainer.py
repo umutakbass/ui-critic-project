@@ -112,18 +112,31 @@ def train(config: FullConfig) -> None:
     adapter.model = model
 
     # 3. Dataset'leri hazırla
-    train_ds = UICriticDataset(
-        config.data.train_path,
-        config.experiment.task,
-        adapter,
-        config.data.max_image_size,
-    )
-    val_ds = UICriticDataset(
-        config.data.val_path,
-        config.experiment.task,
-        adapter,
-        config.data.max_image_size,
-    )
+    if is_gemma4:
+        from .dataset import GemmaDataset
+        train_ds = GemmaDataset(
+            config.data.train_path,
+            config.experiment.task,
+            config.data.max_image_size,
+        )
+        val_ds = GemmaDataset(
+            config.data.val_path,
+            config.experiment.task,
+            config.data.max_image_size,
+        )
+    else:
+        train_ds = UICriticDataset(
+            config.data.train_path,
+            config.experiment.task,
+            adapter,
+            config.data.max_image_size,
+        )
+        val_ds = UICriticDataset(
+            config.data.val_path,
+            config.experiment.task,
+            adapter,
+            config.data.max_image_size,
+        )
 
     # 4. TrainingArguments
     training_args = TrainingArguments(
@@ -157,11 +170,14 @@ def train(config: FullConfig) -> None:
     )
 
     # 5. Collator ve Trainer
-    pad_token_id = (
-        adapter.processor.tokenizer.pad_token_id
-        or adapter.processor.tokenizer.eos_token_id
-    )
-    collator = VLMDataCollator(pad_token_id=pad_token_id)
+    if is_gemma4:
+        collator = adapter.get_collate_fn(max_length=2048)
+    else:
+        pad_token_id = (
+            adapter.processor.tokenizer.pad_token_id
+            or adapter.processor.tokenizer.eos_token_id
+        )
+        collator = VLMDataCollator(pad_token_id=pad_token_id)
 
     trainer = Trainer(
         model=model,

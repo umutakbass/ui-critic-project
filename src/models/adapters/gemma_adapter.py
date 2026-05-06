@@ -56,56 +56,77 @@ class Gemma4Adapter(BaseVLMAdapter):
         return inputs
 
     def prepare_training_inputs(self, instruction: str, target: str, image: Image.Image, max_length: int = 2048) -> Dict:
-        """Eğitim için tam konuşma girdisini hazırla.
-        HuggingFace'in return_assistant_tokens_mask ile sadece asistan
-        cevabı tokenları loss'a katılır.
+        """Qwen gibi diğer modeller bu metodu kullanır.
+        Gemma 4 için get_collate_fn() kullanılır, bu metod çağrılmaz.
         """
-        import torch
-
-        messages_full = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "image", "image": image},
-                    {"type": "text", "text": instruction},
-                ],
-            },
-            {
-                "role": "assistant",
-                "content": [{"type": "text", "text": target}],
-            },
-        ]
-
-        inputs = self.processor.apply_chat_template(
-            messages_full,
-            add_generation_prompt=False,
-            tokenize=True,
-            return_tensors="pt",
-            return_dict=True,
-            processor_kwargs={"truncation": True, "max_length": max_length},
+        raise NotImplementedError(
+            "Gemma 4 için prepare_training_inputs kullanılmaz. "
+            "Trainer get_collate_fn() ile çalışır."
         )
 
-        # Google resmi dokümantasyonuna göre label masking:
-        # pad, boi (begin-of-image), image ve eoi (end-of-image) tokenlarını maskele
-        labels = inputs["input_ids"].clone()
-        tokenizer = self.processor.tokenizer
+    def get_collate_fn(self, max_length: int = 2048):
+        """Resmi Google Gemma 4 fine-tuning yaklaşımı.
+        Kaynaklar: https://ai.google.dev/gemma/docs/core/huggingface_vision_finetune_qlora
+        """
+        processor = self.processor
 
-        # Pad tokeni
-        if tokenizer.pad_token_id is not None:
-            labels[labels == tokenizer.pad_token_id] = -100
+        def collate_fn(examples):
+            texts = []
+            images = []
 
-        # Görsel özel tokenları (boi, image_token, eoi)
-        for attr in ("boi_token_id", "image_token_id", "eoi_token_id"):
-            token_id = getattr(tokenizer, attr, None)
-            if token_id is not None:
-                labels[labels == token_id] = -100
+            for ex in examples:
+                msgs = ex["messages"]
 
-        # mm_token_type_ids ile görsel tokenları da maskele (ek güvence)
-        if "mm_token_type_ids" in inputs:
-            labels[inputs["mm_token_type_ids"] == 1] = -100
+                # Görseli messages içinden çıkar
+                img = None
+                for msg in msgs:
+                    for content in msg.get("content", []):
+                        if isinstance(content, dict) and content.get("type") == "image":
+                            img = content["image"]
+                            break
 
-        inputs["labels"] = labels
-        return inputs
+                images.append([img] if img is not None else [])
+
+                # Chat template ile metin oluştur (tokenize=False)
+                text = processor.apply_chat_template(
+                    msgs,
+                    tokenize=False,
+                    add_generation_prompt=False,
+                )
+                texts.append(text)
+
+            # Processor ile tokenize et
+            batch = processor(
+                text=texts,
+                images=images,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=max_length,
+            )
+
+            # Label masking — resmi Google yaklaşımı
+            labels = batch["input_ids"].clone()
+            tokenizer = processor.tokenizer
+
+            # Pad tokenini maskele
+            if tokenizer.pad_token_id is not None:
+                labels[labels == tokenizer.pad_token_id] = -100
+
+            # Görsel özel tokenlarını maskele (boi, image_token, eoi)
+            for attr in ("boi_token_id", "image_token_id", "eoi_token_id"):
+                token_id = getattr(tokenizer, attr, None)
+                if token_id is not None:
+                    labels[labels == token_id] = -100
+
+            # mm_token_type_ids ile tüm görsel tokenları maskele (ek güvence)
+            if "mm_token_type_ids" in batch:
+                labels[batch["mm_token_type_ids"] == 1] = -100
+
+            batch["labels"] = labels
+            return batch
+
+        return collate_fn
 
     def get_lora_target_modules(self) -> str:
         # Gemma 4'ün vision encoder'ı Gemma4ClippableLinear kullanıyor (PEFT desteklemiyor).
