@@ -29,9 +29,9 @@ training:
   learning_rate: 0.0001
   warmup_steps: 15
   weight_decay: 0.01
-  save_steps: 200
-  eval_steps: 200
-  logging_steps: 20
+  save_steps: 50
+  eval_steps: 50
+  logging_steps: 10
   max_grad_norm: 1.0
   use_unsloth: false
 
